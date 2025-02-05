@@ -1,121 +1,99 @@
-from fastapi import FastAPI, File, UploadFile
+from typing import Optional, List
+from fastapi import FastAPI, File, UploadFile, Depends, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
-from enum import Enum
-import pandas as pd
-import os
+from pydantic_core.core_schema import nullable_schema
+from sqlmodel import SQLModel, Session, create_engine, Field, Integer, String, select, Relationship
 import shutil
 
 app = FastAPI()
 
 
-class NarrativeCategory(Enum):
-    STORIES = 0
-    SITES = 1
-    EXPERIENCES = 2
+DATABASE_URL = "postgresql://postgres:1234@localhost:5432/narvistest"
+engine = create_engine(DATABASE_URL, echo=True)
 
 
-class NarrativeComponent(BaseModel):
-    id: int
+class NarrativeComponentLink(SQLModel, table=True):
+    narrative_id: int | None = Field(foreign_key="narrative.id", default=None, primary_key=True)
+    component_id: int | None = Field(foreign_key="narrativecomponent.id", default=None, primary_key=True)
+
+
+class Narrative(SQLModel, table=True):
+    id: int | None = Field(primary_key=True, default=None, index=True)
+    name: str
+    description: str
+
+    components: list["NarrativeComponent"] = Relationship(back_populates="narratives", link_model=NarrativeComponentLink)
+
+
+class NarrativeComponent(SQLModel, table=True):
+    id: int | None = Field(primary_key=True, default=None, index=True)
     name: str
     description: str
     location: str
     interaction_type: str
-    category: NarrativeCategory
+
+    narratives: list[Narrative] = Relationship(back_populates="components", link_model=NarrativeComponentLink)
 
 
-# Dummy data for initial development prior to excel pipeline
-components = {
-    1: NarrativeComponent(
-        id=1,
-        name="Prophet's Mosque",
-        description="Historic mosque where Prophet Muhammad is buried",
-        location="Madinah City Center",
-        interaction_type="Historical Exploration",
-        category=NarrativeCategory.SITES
-    ),
-    2: NarrativeComponent(
-        id=2,
-        name="Battle of Uhud Narrative",
-        description="Immersive storytelling about the historic battle",
-        location="Uhud Mountain",
-        interaction_type="Guided Storytelling",
-        category=NarrativeCategory.STORIES
-    ),
-    3: NarrativeComponent(
-        id=3,
-        name="Dates Market Experience",
-        description="Interactive tour of Madinah's famous date markets",
-        location="Al-Madina Souq",
-        interaction_type="Culinary Journey",
-        category=NarrativeCategory.EXPERIENCES
-    ),
-    4: NarrativeComponent(
-        id=4,
-        name="Quba Mosque Journey",
-        description="First mosque built by Prophet Muhammad",
-        location="Quba District",
-        interaction_type="Architectural Discovery",
-        category=NarrativeCategory.SITES
-    ),
-    5: NarrativeComponent(
-        id=5,
-        name="Hijra Migration Story",
-        description="Narrative of Prophet Muhammad's migration to Madinah",
-        location="Historical Route",
-        interaction_type="Narrative Walk",
-        category=NarrativeCategory.STORIES
-    ),
-    6: NarrativeComponent(
-        id=6,
-        name="Traditional Craft Workshop",
-        description="Hands-on experience with local artisan crafts",
-        location="Old City Crafts Center",
-        interaction_type="Interactive Workshop",
-        category=NarrativeCategory.EXPERIENCES
-    ),
-    7: NarrativeComponent(
-        id=7,
-        name="Al-Masjid an-Nabawi Complex",
-        description="Comprehensive exploration of the Prophet's Mosque complex",
-        location="City Center",
-        interaction_type="Architectural Tour",
-        category=NarrativeCategory.SITES
-    ),
-    8: NarrativeComponent(
-        id=8,
-        name="Bedouin Lifestyle Narrative",
-        description="Stories of traditional desert life in Madinah region",
-        location="Desert Outskirts",
-        interaction_type="Cultural Storytelling",
-        category=NarrativeCategory.STORIES
-    ),
-    9: NarrativeComponent(
-        id=9,
-        name="Culinary Heritage Tour",
-        description="Taste and learn about Madinah's traditional cuisine",
-        location="Local Food District",
-        interaction_type="Gastronomic Experience",
-        category=NarrativeCategory.EXPERIENCES
-    ),
-    10: NarrativeComponent(
-        id=10,
-        name="Medina's Green Dome Story",
-        description="Historical significance of the Green Dome",
-        location="Prophet's Mosque",
-        interaction_type="Historical Narrative",
-        category=NarrativeCategory.STORIES
-    )
-}
+def get_session():
+    db = Session(engine)
+    try:
+        yield db
+    finally:
+        db.close()
 
 
-@app.get("/welcome")
-async def welcome():
-    return {"message": "Welcome to NARVIS"}
+def create_db_and_tables():
+    SQLModel.metadata.create_all(engine)
 
-@app.get("/login")
-async def login():
-    return {"message": "Login Page"}
+
+@app.post("/addcomponent", response_model=NarrativeComponent)
+def create_component(component: NarrativeComponent, session: Session = Depends(get_session)):
+    try:
+        session.add(component)
+        session.commit()
+        session.refresh(component)
+        return component
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to insert component: {str(e)}")
+
+
+@app.post("/addnarrative", response_model=Narrative)
+def create_narrative(narrative: Narrative, session: Session = Depends(get_session)):
+    try:
+        session.add(narrative)
+        session.commit()
+        session.refresh(narrative)
+        return narrative
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to insert narrative: {str(e)}")
+
+
+@app.get("/getcomponent", response_model=list[NarrativeComponent])
+def read_components(session: Session = Depends(get_session)):
+    statement = select(NarrativeComponent)
+    return session.exec(statement).all()
+
+@app.get("/getnarrative", response_model=list[Narrative])
+def read_narratives(session: Session = Depends(get_session)):
+    statement = select(Narrative)
+    return session.exec(statement).all()
+
+
+@app.delete("/deletecomponent/{component_id}")
+def delete_component(component_id: int, session: Session = Depends(get_session)):
+    try:
+        session.delete(component_id)
+        session.commit()
+        session.refresh(component_id)
+        return {"ok - deleted successfully": True}
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete component: {str(e)}")
+
 
 # Rudimentary file upload method for initial development using Swagger UI docs
 @app.post("/upload")
@@ -128,11 +106,9 @@ async def upload_file(file: UploadFile = File(...)):
     return {"filename": file.filename}
 
 
-@app.get("/components")
-async def get_component():
-    return components
+def main():
+    create_db_and_tables()
 
 
-@app.get("/components/{component_id}")
-async def get_component_by_id(component_id: int):
-    return components[component_id]
+if __name__ == "__main__":
+    main()
