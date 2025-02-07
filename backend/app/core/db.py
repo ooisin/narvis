@@ -1,8 +1,6 @@
 from sqlmodel import Session, create_engine, select, SQLModel
 
-from backend.app import crud
-from config import settings
-from backend.app import models
+from backend.app.core.config import settings
 
 engine = create_engine(str(settings.DATABASE_URI), echo=True)
 

@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from routes import narratives
+from backend.app.api.routes import narratives
 
 from backend.app.core import settings
 

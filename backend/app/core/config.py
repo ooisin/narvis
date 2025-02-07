@@ -1,11 +1,11 @@
-from pydantic import computed_field
+from pydantic import computed_field, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic_core import MultiHostUrl
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file="backend/.env",
         env_ignore_empty=True,
         extra="ignore"
     )
@@ -26,8 +26,10 @@ class Settings(BaseSettings):
             password=self.POSTGRES_PASSWORD,
             host=self.POSTGRES_SERVER,
             port=self.POSTGRES_PORT,
-            path=self.POSTGRES_DB,
+            path=self.POSTGRES_DB, # f"/{self.POSTGRES_DB}"
         )
 
-
-settings = Settings()
+try:
+    settings = Settings()
+except ValidationError as e:
+    print(f"Settings config error: {str(e)}")

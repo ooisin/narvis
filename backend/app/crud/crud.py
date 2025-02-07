@@ -1,26 +1,24 @@
 import shutil
 
-from fastapi import HTTPException, UploadFile, File, Depends
+from fastapi import HTTPException, UploadFile, File
 from fastapi_cli.cli import app
 from sqlmodel import select, Session
 
-from backend.app.api import SessionDep
 from backend.app.models import NarrativeComponent, Narrative
 
-@app.get("/components", response_model=list[NarrativeComponent])
-def read_components(session: SessionDep):
+
+def read_components(session: Session):
     statement = select(NarrativeComponent)
     return session.exec(statement).all()
 
 
-@app.get("/components/{component_id}", response_model=NarrativeComponent)
-def read_component(component_id: int, session: SessionDep):
+
+def read_component(component_id: int, session: Session):
     statement = select(NarrativeComponent).where(NarrativeComponent.id == component_id)
     return session.exec(statement).first()
 
 
-@app.post("/components", response_model=NarrativeComponent)
-def create_component(component: NarrativeComponent, session: SessionDep):
+def create_component(component: NarrativeComponent, session: Session):
     try:
         session.add(component)
         session.commit()
@@ -31,8 +29,7 @@ def create_component(component: NarrativeComponent, session: SessionDep):
         raise HTTPException(status_code=500, detail=f"Failed to insert component: {str(e)}")
 
 
-@app.put("/components/{component_id}", response_model=NarrativeComponent)
-def update_component(component_id: int, updated_component: NarrativeComponent, session: SessionDep):
+def update_component(component_id: int, updated_component: NarrativeComponent, session: Session):
     try:
         statement = select(NarrativeComponent).where(NarrativeComponent.id == component_id)
         component = session.exec(statement).first()
@@ -49,8 +46,7 @@ def update_component(component_id: int, updated_component: NarrativeComponent, s
         raise HTTPException(status_code=500, detail=f"Failed to update component: {str(e)}")
 
 
-@app.delete("/components/{component_id}")
-def delete_component(component_id: int, session: SessionDep):
+def delete_component(component_id: int, session: Session):
     try:
         session.delete(component_id)
         session.commit()
@@ -61,25 +57,24 @@ def delete_component(component_id: int, session: SessionDep):
         raise HTTPException(status_code=500, detail=f"Failed to delete component: {str(e)}")
 
 
-def get_narratives(session: SessionDep):
+def get_narratives(session: Session):
     statement = select(Narrative)
     return session.exec(statement).all()
 
 
-def get_narrative_by_id(narrative_id: int, session: SessionDep):
+def get_narrative_by_id(narrative_id: int, session: Session):
     statement = select(Narrative).where(Narrative.id == narrative_id)
     return session.exec(statement).first()
 
 
-def create_narrative(narrative: Narrative, session: SessionDep):
+def create_narrative(narrative: Narrative, session: Session):
     session.add(narrative)
     session.commit()
     session.refresh(narrative)
     return narrative
 
 
-@app.put("/narratives/{narrative_id}", response_model=Narrative)
-def update_narrative(narrative_id: int, updated_narrative: Narrative, session: SessionDep):
+def update_narrative(narrative_id: int, updated_narrative: Narrative, session: Session):
     try:
         statement = select(Narrative).where(Narrative.id == narrative_id)
         narrative = session.exec(statement).first()
@@ -96,15 +91,16 @@ def update_narrative(narrative_id: int, updated_narrative: Narrative, session: S
         raise HTTPException(status_code=500, detail=f"Failed to update narrative: {str(e)}")
 
 
-def delete_narrative(narrative_id: int, session: SessionDep):
-    session.delete(narrative_id)
+def delete_narrative(narrative_id: int, session: Session) -> None:
+    narrative = session.get(Narrative, narrative_id)
+    if not narrative:
+        raise ValueError(f"Narrative with ID {narrative_id} not found")
+    session.delete(narrative)
     session.commit()
-    session.refresh(narrative_id)
-    return Narrative
+
 
 
 # Rudimentary file upload method for initial development using Swagger UI docs
-@app.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
     file_path = f"backend/test_uploads/{file.filename}"
 
