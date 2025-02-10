@@ -1,16 +1,41 @@
 import shutil
+from typing import Optional
 
 from fastapi import HTTPException, UploadFile, File
-from fastapi_cli.cli import app
 from sqlmodel import select, Session
 
 from backend.app.models import NarrativeComponent, Narrative
+from backend.app.models.models import UserCreate, User
+from backend.app.core.security import get_password_hash, verify_password
 
+
+# TODO: Possibly split crud.py into specific files for User, Narrative ... operations
+
+
+def get_user_by_email(session: Session, email: str) -> Optional[User]:
+    statement = select(User).where(User.email == email)
+    return session.exec(statement).first()
+
+
+def authenticate_user(session: Session, email: str, passwd: str) -> Optional[User]:
+    check_user = get_user_by_email(session, email)
+    if not check_user:
+        return None
+    if not verify_password(passwd, check_user.hashed_password):
+        return None
+    return check_user
+
+
+def create_user(session: Session, user_create: UserCreate ) -> User:
+    new_user = User.model_validate(user_create, update={"hashed_password": get_password_hash(user_create.password)})
+    session.add(new_user)
+    session.commit()
+    session.refresh(new_user)
+    return new_user
 
 def read_components(session: Session):
     statement = select(NarrativeComponent)
     return session.exec(statement).all()
-
 
 
 def read_component(component_id: int, session: Session):
@@ -18,6 +43,7 @@ def read_component(component_id: int, session: Session):
     return session.exec(statement).first()
 
 
+# Try logic should be handled at the service/api/route level
 def create_component(component: NarrativeComponent, session: Session):
     try:
         session.add(component)
