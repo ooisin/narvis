@@ -1,3 +1,5 @@
+import secrets
+
 from pydantic import computed_field, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic_core import MultiHostUrl
@@ -9,6 +11,11 @@ class Settings(BaseSettings):
         env_ignore_empty=True,
         extra="ignore"
     )
+
+    SECRET_KEY: str = secrets.token_urlsafe(32)
+    HASHING_ALGORITHM: str = "HS256" # TODO: Should this be abstracted?
+    ACCESS_TOKEN_EXPIRE_DAYS: int = 7
+    FRONTEND_HOST: str = "http://localhost:5173"
 
     PROJECT_NAME: str
     POSTGRES_SERVER: str
