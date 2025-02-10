@@ -4,6 +4,7 @@ from typing import Optional
 from pydantic import EmailStr
 from sqlmodel import SQLModel, Field, Relationship
 
+
 # The generic parent User class - prevents dupes, other models will inherit from this
 class UserBase(SQLModel):
     email: EmailStr = Field(index=True, unique=True, max_length=255)
@@ -23,16 +24,35 @@ class UserRegister(SQLModel):
 class UserCreate(UserBase):
     password: str = Field(min_length=8, max_length=30)
 
+
 class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4(), primary_key=True)
     hashed_password: str
     narratives: list["Narrative"] = Relationship(back_populates="user", cascade_delete=True)
 
 
+class UserPublic(UserBase):
+    id: uuid.UUID
+
+
+class UsersPublic(SQLModel):
+    users: list[UserPublic]
+    count: int
+
+
 """
 TODO: In future could have a public user class returning non-sensitive data for admin queries
 TODO: User update functions, forgot password, new email, name etc...
 """
+
+
+class Token(SQLModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
+class TokenPayload(SQLModel):
+    sub: str | None = None
 
 
 class NarrativeComponentLink(SQLModel, table=True):
@@ -58,7 +78,3 @@ class NarrativeComponent(SQLModel, table=True):
     interaction_type: str
 
     narratives: list[Narrative] = Relationship(back_populates="components", link_model=NarrativeComponentLink)
-
-
-class UserBase(SQLModel):
-    pass
