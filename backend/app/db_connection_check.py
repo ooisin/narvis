@@ -9,7 +9,7 @@ from backend.app.core.db import engine
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-max_tries = 60 * 3
+max_tries = 100
 wait_seconds = 1
 
 
@@ -29,9 +29,9 @@ def init(db_engine: Engine) -> None:
 
 
 def main() -> None:
-    logger.info("Initialising the db")
+    logger.info("Initialising the db...")
     init(engine)
-    logger.info("The db has been initialised")
+    logger.info("The db has been initialised!")
 
 
 if __name__ == "__main__":
