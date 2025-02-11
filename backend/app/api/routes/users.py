@@ -24,6 +24,16 @@ def create_user(session: SessionDep, user_new: UserCreate) -> Any:
     return user
 
 
+@router.delete("/{user_id}", dependencies=[Depends(get_current_active_superuser)])
+def delete_user_by_id(user_id: uuid.UUID, session: SessionDep) -> str:
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    session.delete(user)
+    session.commit()
+    return f"User: {user_id}, { user.email} deleted successfully"
+
+
 @router.get("/me", response_model=UserPublic)
 def read_user_me(current_user: CurrentUser) -> Any:
     return current_user
@@ -41,8 +51,8 @@ def register_user(session: SessionDep, user_new: UserRegister) -> Any:
 
 
 @router.get("/{user_id}", response_model=UserPublic)
-def get_user_by_id(id: uuid.UUID, session: SessionDep, current_user: CurrentUser) -> Any:
-    user = session.get(User, id)
+def get_user_by_id(user_id: uuid.UUID, session: SessionDep, current_user: CurrentUser) -> Any:
+    user = session.get(User, user_id)
     if user == current_user:
         return user
     if not current_user.is_superuser:
@@ -56,6 +66,9 @@ def read_users(session: SessionDep) -> Any:
     count = session.exec(count_statement).one()
 
     statement = select(User).limit(100) # could parameterise this later stages
-    users = session.exec(statement).all()
+    data = session.exec(statement).all()
 
-    return UsersPublic(data=users, count=count)
+    return UsersPublic(users=data, count=count)
+
+
+# TODO: Logout function
