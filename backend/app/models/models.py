@@ -1,5 +1,4 @@
 import uuid
-from typing import Optional
 
 from pydantic import EmailStr
 from sqlmodel import SQLModel, Field, Relationship
@@ -26,9 +25,8 @@ class UserCreate(UserBase):
 
 
 class User(UserBase, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4(), primary_key=True)
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
-    narratives: list["Narrative"] = Relationship(back_populates="user", cascade_delete=True)
 
 
 class UserPublic(UserBase):
@@ -38,7 +36,6 @@ class UserPublic(UserBase):
 class UsersPublic(SQLModel):
     users: list[UserPublic]
     count: int
-
 
 """
 TODO: In future could have a public user class returning non-sensitive data for admin queries
@@ -55,26 +52,34 @@ class TokenPayload(SQLModel):
     sub: str | None = None
 
 
-class NarrativeComponentLink(SQLModel, table=True):
-    narrative_id: int | None = Field(foreign_key="narrative.id", default=None, primary_key=True)
-    component_id: int | None = Field(foreign_key="narrativecomponent.id", default=None, primary_key=True)
+
+class NarrativeBase(SQLModel):
+    name: str = Field(min_length=1, max_length=255)
+    description: str | None = Field(default=None, max_length=255)
+
 
 # Revise for a NarrativeBase class to avoid any duplicate code when the model is more complicated
-class Narrative(SQLModel, table=True):
-    id: int | None = Field(primary_key=True, default=None, index=True)
+class Narrative(NarrativeBase, table=True):
+    id: uuid.UUID | None = Field(primary_key=True, default_factory=uuid.uuid4, index=True)
     name: str
     description: str
-    owner_id: uuid.UUID = Field(foreign_key="user.id",)
-    owner: Optional[User] = Relationship(back_populates="narratives")
+    owner_id: uuid.UUID = Field(foreign_key="user.id", nullable=False, ondelete="CASCADE")
 
-    components: list["NarrativeComponent"] = Relationship(back_populates="narratives", link_model=NarrativeComponentLink)
+    owner: User | None = Relationship(back_populates="items")
 
 
-class NarrativeComponent(SQLModel, table=True):
-    id: int | None = Field(primary_key=True, default=None, index=True)
-    name: str
-    description: str
-    location: str
-    interaction_type: str
+class NarrativePublic(NarrativeBase):
+    id: uuid.UUID
+    owner_id: uuid.UUID
 
-    narratives: list[Narrative] = Relationship(back_populates="components", link_model=NarrativeComponentLink)
+
+class NarrativesPublic(SQLModel):
+    data: list[NarrativePublic]
+    count: int
+
+
+class NarrativeCreate(NarrativeBase):
+    pass
+
+class NarrativeComponent(SQLModel):
+    pass

@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import HTTPException, UploadFile, File
 from sqlmodel import select, Session
 
-from backend.app.models import NarrativeComponent, Narrative
+from backend.app.models.models import Narrative, NarrativeComponent
 from backend.app.models.models import UserCreate, User
 from backend.app.core.security import get_password_hash, verify_password
 
