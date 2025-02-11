@@ -6,7 +6,8 @@ from jwt import InvalidTokenError
 from pydantic import ValidationError
 from sqlmodel import Session
 import jwt
-from backend.app.core import engine, settings
+from backend.app.core.config import settings
+from backend.app.core.db import engine
 from backend.app.models.models import User, TokenPayload
 
 

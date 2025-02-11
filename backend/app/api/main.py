@@ -1,10 +1,10 @@
 from fastapi import APIRouter
 
-from backend.app.api.routes import narratives
+from backend.app.api.routes import narratives, users, login
 
-from backend.app.core import settings
+from backend.app.core.config import settings
 
 api_router = APIRouter()
 api_router.include_router(narratives.router)
-
-
+api_router.include_router(users.router)
+api_router.include_router(login.router)
