@@ -48,7 +48,6 @@ def read_narrative(session: SessionDep, current_user: CurrentUser, id: uuid.UUID
 
 @router.post("/", response_model=NarrativePublic)
 def create_item(*, session: SessionDep, current_user: CurrentUser, narrative_in: NarrativeCreate) -> Any:
-
     narrative = Narrative.model_validate(narrative_in, update={"owner_id": current_user.id})
     session.add(narrative)
     session.commit()
