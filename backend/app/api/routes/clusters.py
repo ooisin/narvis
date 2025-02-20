@@ -60,3 +60,5 @@ def delete_cluster(session: SessionDep, current_user: CurrentUser, id: uuid.UUID
     if not current_user.is_superuser and (cluster.owner_id != current_user.id):
         raise HTTPException(status_code=400, detail="No permission to delete this cluster")
     session.delete(cluster)
+    session.commit()
+    return f"Cluster: {id} deleted successfully"
