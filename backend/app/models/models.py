@@ -270,7 +270,7 @@ class ClusterBase(SQLModel):
 
 class Cluster(ClusterBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-
+    owner_id: Optional[uuid.UUID] = Field(foreign_key="user.id")
     experience_id: Optional[uuid.UUID] = Field(foreign_key="experience.id")
     hub_id: Optional[uuid.UUID] = Field(foreign_key="hub.id")
     experience_component_id: Optional[uuid.UUID] = Field(foreign_key="experiencecomponent.id")
@@ -305,7 +305,7 @@ class ArtefactBase(SQLModel):
 
 class Artefact(ArtefactBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-
+    owner_id: Optional[uuid.UUID] = Field(foreign_key="user.id")
     experience_id: Optional[uuid.UUID] = Field(foreign_key="experience.id")
     narrative_id: Optional[uuid.UUID] = Field(foreign_key="narrative.id")
     substory_id: Optional[uuid.UUID] = Field(foreign_key="substory.id")
@@ -343,7 +343,7 @@ class HubBase(SQLModel):
 
 class Hub(HubBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-
+    owner_id: Optional[uuid.UUID] = Field(foreign_key="user.id")
     experience_id: Optional[uuid.UUID] = Field(foreign_key="experience.id")
     cluster_id: Optional[uuid.UUID] = Field(foreign_key="cluster.id")
     __table_args__ = {'extend_existing': True}
