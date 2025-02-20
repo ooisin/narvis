@@ -17,7 +17,7 @@ def create_user(session: SessionDep, user_new: UserCreate) -> Any:
     if user:
         raise HTTPException(status_code=400, detail=f"User with email {user.email} already exists")
 
-    user = crud.create_user(session=session, user_create=user_new)
+    user = crud.create_db_user(session=session, user_create=user_new)
 
     # TODO: Add some email verification that account has been created
 
@@ -46,7 +46,7 @@ def register_user(session: SessionDep, user_new: UserRegister) -> Any:
         raise HTTPException(status_code=400, detail=f"User with email {user.email} already exists")
 
     user_create = UserCreate.model_validate(user_new)
-    user = crud.create_user(session=session, user_create=user_create)
+    user = crud.create_db_user(session=session, user_create=user_create)
     return user
 
 
