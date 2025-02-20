@@ -4,14 +4,14 @@ from typing import Optional
 from fastapi import HTTPException, UploadFile, File
 from sqlmodel import select, Session
 
-from backend.app.models.models import Narrative, NarrativeComponent
+from backend.app.models.models import Narrative, ExperienceComponent
 from backend.app.models.models import UserCreate, User
 from backend.app.core.security import get_password_hash, verify_password
 
 
 # TODO: Possibly split crud.py into specific files for User, Narrative ... operations
 
-
+""" USER """
 def get_user_by_email(session: Session, email: str) -> Optional[User]:
     statement = select(User).where(User.email == email)
     return session.exec(statement).first()
@@ -26,25 +26,27 @@ def authenticate_user(session: Session, email: str, passwd: str) -> Optional[Use
     return check_user
 
 
-def create_user(session: Session, user_create: UserCreate ) -> User:
+def create_db_user(session: Session, user_create: UserCreate ) -> User:
     new_user = User.model_validate(user_create, update={"hashed_password": get_password_hash(user_create.password)})
     session.add(new_user)
     session.commit()
     session.refresh(new_user)
     return new_user
 
+
+
 def read_components(session: Session):
-    statement = select(NarrativeComponent)
+    statement = select(ExperienceComponent)
     return session.exec(statement).all()
 
 
 def read_component(component_id: int, session: Session):
-    statement = select(NarrativeComponent).where(NarrativeComponent.id == component_id)
+    statement = select(ExperienceComponent).where(ExperienceComponent.id == component_id)
     return session.exec(statement).first()
 
 
 # Try logic should be handled at the service/api/route level
-def create_component(component: NarrativeComponent, session: Session):
+def create_component(component: ExperienceComponent, session: Session):
     try:
         session.add(component)
         session.commit()
@@ -55,9 +57,9 @@ def create_component(component: NarrativeComponent, session: Session):
         raise HTTPException(status_code=500, detail=f"Failed to insert component: {str(e)}")
 
 
-def update_component(component_id: int, updated_component: NarrativeComponent, session: Session):
+def update_component(component_id: int, updated_component: ExperienceComponent, session: Session):
     try:
-        statement = select(NarrativeComponent).where(NarrativeComponent.id == component_id)
+        statement = select(ExperienceComponent).where(ExperienceComponent.id == component_id)
         component = session.exec(statement).first()
         if component is None:
             raise HTTPException(status_code=404, detail=f"Component with id {component_id} not found")
