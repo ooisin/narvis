@@ -3,7 +3,7 @@ import uuid
 
 from pydantic import EmailStr
 from sqlmodel import SQLModel, Field, Relationship
-from typing import Optional
+from typing import Optional, List
 
 # The generic parent User class - prevents dupes, other models will inherit from this
 class UserBase(SQLModel):
@@ -28,7 +28,7 @@ class UserCreate(UserBase):
 class User(UserBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     hashed_password: str
-
+    __table_args__ = {'extend_existing': True}
 
 class UserPublic(UserBase):
     id: uuid.UUID
@@ -38,6 +38,9 @@ class UsersPublic(SQLModel):
     users: list[UserPublic]
     count: int
 
+"""
+Links for many to many rels
+"""
 
 """
 TODO: In future could have a public user class returning non-sensitive data for admin queries
@@ -51,6 +54,81 @@ class Token(SQLModel):
 
 class TokenPayload(SQLModel):
     sub: str | None = None
+
+
+''' Experiences - will need to consider update class later '''
+class ExperienceBase(SQLModel):
+    experience_name: str = Field(max_length=255)
+    experience_description: Optional[str] = Field(default=None, max_length=1000)
+    location_type: Optional[str] = Field(default=None, max_length=255)
+    investment: Optional[float] = Field(default=None)
+    stage: Optional[str] = Field(default="concept", max_length=50)
+    status: Optional[str] = Field(default="draft", max_length=50)
+    stakeholders: Optional[str] = Field(default=None, max_length=1000)
+    responsible: Optional[str] = Field(default=None, max_length=255)
+    accountable: Optional[str] = Field(default=None, max_length=255)
+    consulted: Optional[str] = Field(default=None, max_length=255)
+    informed: Optional[str] = Field(default=None, max_length=255)
+    experience_blueprint_id: Optional[str] = Field(default=None, max_length=50)
+
+
+class Experience(ExperienceBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    owner_id: Optional[uuid.UUID] = Field(foreign_key="user.id")
+    experience_component_id: Optional[uuid.UUID] = Field(foreign_key="experiencecomponent.id")
+    hub_id: Optional[uuid.UUID] = Field(foreign_key="hub.id")
+    cluster_id: Optional[uuid.UUID] = Field(foreign_key="cluster.id")
+    site_id: Optional[uuid.UUID] = Field(foreign_key="site.id")
+    narrative_ids: Optional[uuid.UUID] = Field(foreign_key="narrative.id")
+    feasibility_id: Optional[uuid.UUID] = Field(foreign_key="feasibility.id")
+    __table_args__ = {'extend_existing': True}
+
+
+class ExperiencePublic(ExperienceBase):
+    id: uuid.UUID
+
+
+class ExperiencesPublic(SQLModel):
+    experiences: list[ExperiencePublic]
+    count: int
+
+
+class ExperienceCreate(ExperienceBase):
+    experience_component_id: uuid.UUID
+    hub_id: uuid.UUID
+    cluster_id: uuid.UUID
+    site_id: uuid.UUID
+    narrative_ids: uuid.UUID
+    feasibility_id: uuid.UUID
+
+
+''' Experience Components - will need to consider update class later '''
+class ExperienceComponentBase(SQLModel):
+    experience_component_name: str = Field(max_length=255)
+    experience_component_description: Optional[str] = Field(default=None, max_length=1000)
+    experience_component_type: Optional[str] = Field(default=None, max_length=255)
+    experience_component_status: Optional[str] = Field(default="draft", max_length=50)
+    experience_component_provider: Optional[str] = Field(default=None, max_length=255)
+    experience_component_card_id: Optional[str] = Field(default=None, max_length=50)
+    experience_component_documentation: Optional[str] = Field(default=None, max_length=2000)
+
+
+class ExperienceComponent(ExperienceComponentBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    experience_id: Optional[uuid.UUID] = Field(foreign_key="experience.id")
+    __table_args__ = {'extend_existing': True}
+
+class ExperienceComponentPublic(ExperienceComponentBase):
+    id: uuid.UUID
+
+
+class ExperienceComponentsPublic(SQLModel):
+    experience_components: list[ExperienceComponentPublic]
+    count: int
+
+
+class ExperienceComponentCreate(ExperienceComponentBase):
+    experience_id: uuid.UUID
 
 
 '''
@@ -71,19 +149,14 @@ class NarrativeBase(SQLModel):
 
 
 class Narrative(NarrativeBase, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)  # PK NARRATIVE ID
-
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     experience_id: Optional[uuid.UUID] = Field(foreign_key="experience.id")
     hub_id: Optional[uuid.UUID] = Field(foreign_key="hub.id")
-    site_ids: list[uuid.UUID] = []
+    site_ids: Optional[uuid.UUID] = Field(foreign_key="site.id")
     substory_id: Optional[uuid.UUID] = Field(foreign_key="substory.id")
     artefact_id: Optional[uuid.UUID] = Field(foreign_key="artefact.id")
-
-    experience: Optional["Experience"] = Relationship(back_populates="narratives")
-    hub: Optional["Hub"] = Relationship(back_populates="narratives")
-    sites: list["Site"] = Relationship(back_populates="narratives", link_model="NarrativeSiteLink")
-    substory: Optional["Substory"] = Relationship(back_populates="narratives")
-    artefact: Optional["Artefact"] = Relationship(back_populates="narratives")
+    owner_id: Optional[uuid.UUID] = Field(foreign_key="user.id")
+    __table_args__ = {'extend_existing': True}
 
 
 class NarrativePublic(NarrativeBase):
@@ -99,9 +172,9 @@ class NarrativesPublic(SQLModel):
 class NarrativeCreate(NarrativeBase):
     experience_id: uuid.UUID
     hub_id: uuid.UUID
-    site_ids: list[uuid.UUID]
-    substory_ids: list[uuid.UUID]
-    artefact_ids:list[uuid.UUID]
+    site_ids: uuid.UUID
+    substory_ids: uuid.UUID
+    artefact_ids: uuid.UUID
 
 
 ''' Substories - will need to consider update class later '''
@@ -117,16 +190,12 @@ class SubstoryBase(SQLModel):
 
 class Substory(SubstoryBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-
+    owner_id: Optional[uuid.UUID] = Field(foreign_key="user.id")
     experience_id: Optional[uuid.UUID] = Field(foreign_key="experience.id")
     narrative_id: Optional[uuid.UUID] = Field(foreign_key="narrative.id")
     artefact_id: Optional[uuid.UUID] = Field(foreign_key="artefact.id")
     site_id: Optional[uuid.UUID] = Field(foreign_key="site.id")
-
-    experience: Optional["Experience"] = Relationship(back_populates="substories")
-    narrative: Optional["Narrative"] = Relationship(back_populates="substories")
-    artefact: Optional["Artefact"] = Relationship(back_populates="substories")
-    site: Optional["Site"] = Relationship(back_populates="substories")
+    __table_args__ = {'extend_existing': True}
 
 
 class SubstoryPublic(SubstoryBase):
@@ -138,91 +207,10 @@ class SubstoriesPublic(SQLModel):
 
 
 class SubstoryCreate(SubstoryBase):
-    xp_id: uuid.UUID
+    experience_id: uuid.UUID
     narrative_id: uuid.UUID
     artefact_id: uuid.UUID
     site_id: uuid.UUID
-
-
-''' Experiences - will need to consider update class later '''
-class ExperienceBase(SQLModel):
-    experience_name: str = Field(max_length=255)
-    experience_description: Optional[str] = Field(default=None, max_length=1000)
-    location_type: Optional[str] = Field(default=None, max_length=255)
-    investment: Optional[float] = Field(default=None)
-    stage: Optional[str] = Field(default="concept", max_length=50)
-    status: Optional[str] = Field(default="draft", max_length=50)
-    stakeholders: Optional[str] = Field(default=None, max_length=1000)
-    responsible: Optional[str] = Field(default=None, max_length=255)
-    accountable: Optional[str] = Field(default=None, max_length=255)
-    consulted: Optional[str] = Field(default=None, max_length=255)
-    informed: Optional[str] = Field(default=None, max_length=255)
-    experience_blueprint_id: Optional[str] = Field(default=None, max_length=50)
-
-
-class Experience(ExperienceBase, table=True):
-    experience_component_id: Optional[uuid.UUID] = Field(foreign_key="experiencecomponent.id")
-    hub_id: Optional[uuid.UUID] = Field(foreign_key="hub.id")
-    cluster_id: Optional[uuid.UUID] = Field(foreign_key="cluster.id")
-    site_id: Optional[uuid.UUID] = Field(foreign_key="site.id")
-    narrative_ids: list[uuid.UUID] = []
-    feasibility_id: Optional[uuid.UUID] = Field(foreign_key="feasibility.id")
-
-    xp_component: Optional["ExperienceComponent"] = Relationship(back_populates="experiences")
-    hub: list["Hub"] = Relationship(back_populates="experiences")
-    cluster: list["Cluster"] = Relationship(back_populates="experiences")
-    site: Optional["Site"] = Relationship(back_populates="experiences")
-    narratives: list["Narrative"] = Relationship(back_populates="experiences", link_model="ExperienceNarrativeLink")
-    feasibility: Optional["Feasibility"] = Relationship(back_populates="experiences")
-
-
-class ExperiencePublic(ExperienceBase):
-    id: uuid.UUID
-
-
-class ExperiencesPublic(SQLModel):
-    experiences: list[ExperiencePublic]
-    count: int
-
-
-class ExperienceCreate(ExperienceBase):
-    experience_component_id: uuid.UUID
-    hub_id: uuid.UUID
-    cluster_id: uuid.UUID
-    site_id: uuid.UUID
-    narrative_ids: list[uuid.UUID]
-    feasibility_id: uuid.UUID
-
-
-''' Experience Components - will need to consider update class later '''
-class ExperienceComponentBase(SQLModel):
-    experience_component_name: str = Field(max_length=255)
-    experience_component_description: Optional[str] = Field(default=None, max_length=1000)
-    experience_component_type: Optional[str] = Field(default=None, max_length=255)
-    experience_component_status: Optional[str] = Field(default="draft", max_length=50)
-    experience_component_provider: Optional[str] = Field(default=None, max_length=255)
-    experience_component_card_id: Optional[str] = Field(default=None, max_length=50)
-    experience_component_documentation: Optional[str] = Field(default=None, max_length=2000)
-
-
-class ExperienceComponent(ExperienceComponentBase, table=True):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    experience_id: Optional[uuid.UUID] = Field(foreign_key="experience.id")
-
-    experience: Optional["Experience"] = Relationship(back_populates="experience_components")
-
-
-class ExperienceComponentPublic(ExperienceComponentBase):
-    id: uuid.UUID
-
-
-class ExperienceComponentsPublic(SQLModel):
-    experience_components: list[ExperienceComponentPublic]
-    count: int
-
-
-class ExperienceComponentCreate(ExperienceComponentBase):
-    experience_id: uuid.UUID
 
 
 ''' Sites - will need to consider update class later '''
@@ -242,16 +230,12 @@ class SiteBase(SQLModel):
 
 class Site(SiteBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-
+    owner_id: Optional[uuid.UUID] = Field(foreign_key="user.id")
     experience_id: Optional[uuid.UUID] = Field(foreign_key="experience.id")
     hub_id: Optional[uuid.UUID] = Field(foreign_key="hub.id")
     cluster_id: Optional[uuid.UUID] = Field(foreign_key="cluster.id")
     experience_component_id: Optional[uuid.UUID] = Field(foreign_key="experiencecomponent.id")
-
-    experience: Optional["Experience"] = Relationship(back_populates="sites")
-    hub: Optional["Hub"] = Relationship(back_populates="sites")
-    cluster: Optional["Cluster"] = Relationship(back_populates="sites")
-    experience_component: Optional["ExperienceComponent"] = Relationship(back_populates="sites")
+    __table_args__ = {'extend_existing': True}
 
 
 class SitePublic(SiteBase):
@@ -290,10 +274,7 @@ class Cluster(ClusterBase, table=True):
     experience_id: Optional[uuid.UUID] = Field(foreign_key="experience.id")
     hub_id: Optional[uuid.UUID] = Field(foreign_key="hub.id")
     experience_component_id: Optional[uuid.UUID] = Field(foreign_key="experiencecomponent.id")
-
-    experience: Optional["Experience"] = Relationship(back_populates="clusters")
-    hub: Optional["Hub"] = Relationship(back_populates="clusters")
-    experience_component: Optional["ExperienceComponent"] = Relationship(back_populates="clusters")
+    __table_args__ = {'extend_existing': True}
 
 
 class ClusterPublic(ClusterBase):
@@ -329,12 +310,7 @@ class Artefact(ArtefactBase, table=True):
     narrative_id: Optional[uuid.UUID] = Field(foreign_key="narrative.id")
     substory_id: Optional[uuid.UUID] = Field(foreign_key="substory.id")
     site_id: Optional[uuid.UUID] = Field(foreign_key="site.id")
-
-    experience: Optional["Experience"] = Relationship(back_populates="artefacts")
-    narrative: Optional["Narrative"] = Relationship(back_populates="artefacts")
-    substory: Optional["Substory"] = Relationship(back_populates="artefacts")
-    site: Optional["Site"] = Relationship(back_populates="artefacts")
-
+    __table_args__ = {'extend_existing': True}
 
 class ArtefactPublic(ArtefactBase):
     id: uuid.UUID
@@ -370,10 +346,7 @@ class Hub(HubBase, table=True):
 
     experience_id: Optional[uuid.UUID] = Field(foreign_key="experience.id")
     cluster_id: Optional[uuid.UUID] = Field(foreign_key="cluster.id")
-
-    experience: Optional["Experience"] = Relationship(back_populates="hubs")
-    cluster: Optional["Cluster"] = Relationship(back_populates="hubs")
-
+    __table_args__ = {'extend_existing': True}
 
 class HubPublic(HubBase):
     id: uuid.UUID
@@ -403,14 +376,11 @@ class TourBase(SQLModel):
 
 class Tour(TourBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-
+    owner_id: Optional[uuid.UUID] = Field(foreign_key="user.id")
     experience_id: Optional[uuid.UUID] = Field(foreign_key="experience.id")
     narrative_id: Optional[uuid.UUID] = Field(foreign_key="narrative.id")
     site_id: Optional[uuid.UUID] = Field(foreign_key="site.id")
-
-    experience: Optional["Experience"] = Relationship(back_populates="tours")
-    narrative: Optional["Narrative"] = Relationship(back_populates="tours")
-    site: Optional["Site"] = Relationship(back_populates="tours")
+    __table_args__ = {'extend_existing': True}
 
 
 class TourPublic(TourBase):
@@ -442,8 +412,7 @@ class FeasibilityBase(SQLModel):
 class Feasibility(FeasibilityBase, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     experience_id: Optional[uuid.UUID] = Field(foreign_key="experience.id")
-
-    experience: Optional["Experience"] = Relationship(back_populates="feasibilities")
+    __table_args__ = {'extend_existing': True}
 
 
 class FeasibilityPublic(FeasibilityBase):
@@ -457,4 +426,3 @@ class FeasibilitiesPublic(SQLModel):
 
 class FeasibilityCreate(FeasibilityBase):
     experience_id: uuid.UUID
-
