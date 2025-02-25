@@ -23,12 +23,12 @@ def get_experience_component(id: uuid.UUID, session: SessionDep, current_user: C
 
 
 @router.get("/", response_model=ExperienceComponentsPublic)
-def get_experience_components(session: SessionDep, current_user: CurrentUser, experience: Experience, limit: int = 100) -> Any:
+def get_experience_components(session: SessionDep, current_user: CurrentUser, limit: int = 100) -> Any:
     if current_user.is_superuser:
         count_statement = (
             select(func.count())
             .select_from(ExperienceComponent)
-            .where(ExperienceComponent.experience_id == experience.id)
+            .where(ExperienceComponent.owner_id == current_user.id)
         )
         count = session.exec(count_statement).one()
         statement = select(ExperienceComponent).limit(limit)
@@ -37,12 +37,12 @@ def get_experience_components(session: SessionDep, current_user: CurrentUser, ex
         count_statement = (
             select(func.count())
             .select_from(ExperienceComponent)
-            .where(ExperienceComponent.experience_id == experience.id)
+            .where(ExperienceComponent.owner_id == current_user.id)
         )
         count = session.exec(count_statement).one()
         statement = (
             select(ExperienceComponent)
-            .where(ExperienceComponent.experience_id == experience.id)
+            .where(ExperienceComponent.owner_id == current_user.id)
             .limit(limit)
         )
         experience_components = session.exec(statement).all()
